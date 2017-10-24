@@ -20,14 +20,29 @@ export default class Tetris extends Component {
 
         this.direction = 'right';
         this.state = this.getInitialState();
+
+        this.onTick = this.onTick.bind(this);
+        this.onStartPauseClickedCallback = this.onStartPauseClickedCallback.bind(this);
+        this.onStartPauseStateChanged = this.onStartPauseStateChanged.bind(this);
+        this.onKeyPressed = this.onKeyPressed.bind(this);
     }
 
     componentWillMount() {
-        document.addEventListener("keyPress", this.onKeyPressed, false);
+        document.addEventListener("keydown", this.onKeyPressed, false);
     }
 
     onKeyPressed(e) {
-        console.log(e);
+        const key = e.key;
+
+        if (key === 'ArrowUp' && this.direction !== 'down') {
+            this.direction = 'up';
+        } else if (key === 'ArrowDown' && this.direction !== 'up') {
+            this.direction = 'down';
+        } else if (key === 'ArrowLeft' && this.direction !== 'right') {
+            this.direction = 'left';
+        } else if (key === 'ArrowRight' && this.direction !== 'left') {
+            this.direction = 'right';
+        }
     }
 
     getInitialState() {
@@ -71,25 +86,83 @@ export default class Tetris extends Component {
     }
 
     onStartPauseClickedCallback() {
-        this.setState(prevState => {
+        console.log('callback');
+        this.setState((prevState, props) => ({
             paused: !prevState.paused
-        }, () => this.onStartPauseStateChanged());
+        }), this.onStartPauseStateChanged );
     }
 
     onStartPauseStateChanged() {
         if (!this.state.paused) {
-            this.timerId = setInterval(1000, this.onTick);
+            this.timerId = setInterval(this.onTick, 300);
         } else {
             clearInterval(this.timerId);
         }
     }
 
     onTick() {
-
+        if (!this.state.paused) {
+            this.tryToMoveSnake();
+        }
     }
 
     tryToMoveSnake() {
-        
+        if (this.checkCollision()) {
+            // handle collision
+        } else {
+            this.moveSnake();
+        }
+    }
+
+    moveSnake() {
+        console.log('moving snake');
+        this.snakePositions.shift();
+        const firstTile = this.snakePositions[this.snakePositions.length - 1];
+        let firstX = firstTile.x, firstY = firstTile.y;
+
+        switch (this.direction) {
+            case 'right':
+                if (firstY === this.mapSize - 1) {
+                    firstY = 0;
+                } else {
+                    ++firstY;
+                }
+
+                break;
+
+            case 'left':
+                if (firstY === 0) {
+                    firstY = this.mapSize - 1;
+                } else {
+                    --firstY;
+                }
+
+                break;
+
+            case 'up':
+                if (firstX === 0) {
+                    firstX = this.mapSize - 1;
+                } else {
+                    --firstX;
+                }
+
+                break;
+
+            case 'down':
+                if (firstX === this.mapSize - 1) {
+                    firstX = 0;
+                } else {
+                    ++firstX;
+                }
+
+                break;
+        }
+
+        this.snakePositions.push({ x: firstX, y: firstY });
+
+        this.setState({
+            board: this.createBoardSyncedWithSnakePositions()
+        });
     }
 
     checkCollision() {
@@ -99,7 +172,7 @@ export default class Tetris extends Component {
     render () {
         return [
                 <Board board={this.state.board} />,
-                <ControlPanel paused={this.state.paused} onStartPauseClicked={this.state.onStartPauseClickedCallback} />
+                <ControlPanel paused={this.state.paused} onStartPauseClicked={this.onStartPauseClickedCallback} />
         ];
     }
 }

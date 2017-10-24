@@ -33,7 +33,7 @@ const ResetButton = styled.button`
 const ControlPanel = (props) => {
     return (
         <Container>
-            <StartStopButton>{props.paused ? 'Play' : 'Pause' }</StartStopButton>
+            <StartStopButton onClick={props.onStartPauseClicked}>{props.paused ? 'Play' : 'Pause' }</StartStopButton>
             <ResetButton>Reset</ResetButton>
         </Container>
     );

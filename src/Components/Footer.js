@@ -27,7 +27,7 @@ const Footer = () => {
             </FooterContent>
             <FooterContent>
                 <span>
-                    <Link href="https://github.com/">Code on GitHub</Link>
+                    <Link href="https://github.com/rafcioki/ReactSnake">Code on GitHub</Link>
                 </span>
             </FooterContent>
         </footer>
