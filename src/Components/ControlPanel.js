@@ -1,13 +1,17 @@
 import React from 'react';
 import styled from 'styled-components';
 
+const Layout = styled.div`
+    display: flex;
+    flex-direction: column;
+`;
+
 const Container = styled.div`
-    margin-top: 10px;
     display: flex;
     justify-content: center;
 `;
 
-const StartStopButton = styled.button`
+const GameplayButton = styled.button`
     font-family: Arial;
     color: #ffffff;
     font-size: 15px;
@@ -30,12 +34,29 @@ const ResetButton = styled.button`
     cursor: pointer;
 `;
 
+const RenderGamePlayPanel = (props) => {
+    return [
+            <GameplayButton onClick={props.onStartPauseClicked}>{props.paused ? 'Play' : 'Pause' }</GameplayButton>,
+            <ResetButton>Reset</ResetButton>
+    ];
+};
+
+const RenderGameOverPanel = (props) => {
+    return (
+        <GameplayButton onClick={props.onResetGameClicked}>Play again</GameplayButton>
+    );
+};
+
 const ControlPanel = (props) => {
     return (
-        <Container>
-            <StartStopButton onClick={props.onStartPauseClicked}>{props.paused ? 'Play' : 'Pause' }</StartStopButton>
-            <ResetButton>Reset</ResetButton>
-        </Container>
+        <Layout>
+            <Container>
+                <p>Score: {props.score}</p>
+            </Container>
+            <Container>
+                { props.gameOver ?  RenderGameOverPanel(props) : RenderGamePlayPanel(props) }
+            </Container>
+        </Layout>
     );
 }
 

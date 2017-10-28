@@ -20,15 +20,60 @@ const StandardTile = styled.td`
     width: 15px;
 `;
 
+const AppleTile = styled.td`
+    background-color: red;
+    height: 15px; 
+    width: 15px;
+`;
+
+const createEmptyTwoDimensionalArray = () => {
+    const board = [];
+
+    for (let i = 0; i < 20; ++i) {
+        board.push([]);
+
+        for (let j = 0; j < 20; ++j) {
+            board[i].push('');
+        }
+    }
+
+    return board;
+}
+
+const createBoard = (snake, apple) => {
+    const board = createEmptyTwoDimensionalArray();
+    
+    for (let i = 0; i < snake.length; ++i) {
+        const x = snake[i].x;
+        const y = snake[i].y;
+
+        board[x][y] = 's';
+    }
+
+    board[apple.x][apple.y] = 'a';
+
+    return board;
+}
+
+const getTileFor = (value) => {
+    if (value === 's') {
+        return <SnakeTile></SnakeTile>;
+    } else if (value === 'a') {
+        return <AppleTile></AppleTile>;
+    }
+
+    return <StandardTile></StandardTile>;
+}
+
 const Board = (props) => {
     return (
         <Table>
             <tbody>
                 {
-                    props.board.map(row => {
+                    createBoard(props.snake, props.apple).map(row => {
                         return (<tr>
                             { row.map(column => {
-                                return column === '' ? <StandardTile></StandardTile> : <SnakeTile></SnakeTile>
+                                return getTileFor(column);
                             }) }
                         </tr>)
                     })

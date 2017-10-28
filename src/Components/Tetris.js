@@ -2,99 +2,106 @@ import React, { Component } from 'react';
 import styled from 'styled-components';
 import Board from './Board';
 import ControlPanel from './ControlPanel';
+import getRandomInt from '../Utils/Random';
 
 const GameContainer = styled.div`
     display: flex;
     justify-content: center;
 `;
 
+const DefaultMapSize = 20;
+const PointsIncrement = 10;
+
 export default class Tetris extends Component {
     constructor(props) {
         super(props);
 
-        this.mapSize = 20;
-        this.initialSnakeLength = 3;
-
-        this.snakePositions = [];
-        this.addSnakeOnInitialPosition();
-
-        this.direction = 'right';
         this.state = this.getInitialState();
 
         this.onTick = this.onTick.bind(this);
         this.onStartPauseClickedCallback = this.onStartPauseClickedCallback.bind(this);
         this.onStartPauseStateChanged = this.onStartPauseStateChanged.bind(this);
         this.onKeyPressed = this.onKeyPressed.bind(this);
+        this.onGameResetClickedCallback = this.onGameResetClickedCallback.bind(this);
     }
 
     componentWillMount() {
         document.addEventListener("keydown", this.onKeyPressed, false);
     }
 
-    onKeyPressed(e) {
-        const key = e.key;
+    getInitialState(isPausedWhenStarted = true) {
+        const initialSnake = this.createInitialSnake();
 
-        if (key === 'ArrowUp' && this.direction !== 'down') {
-            this.direction = 'up';
-        } else if (key === 'ArrowDown' && this.direction !== 'up') {
-            this.direction = 'down';
-        } else if (key === 'ArrowLeft' && this.direction !== 'right') {
-            this.direction = 'left';
-        } else if (key === 'ArrowRight' && this.direction !== 'left') {
-            this.direction = 'right';
-        }
-    }
-
-    getInitialState() {
         return {
-            paused: true,
-            board: this.createBoardSyncedWithSnakePositions()
+            direction: 'right',
+            snake: this.createInitialSnake(),
+            gameOver: false,
+            paused: isPausedWhenStarted,
+            score: 0,
+            apple: this.createNewApple(initialSnake)
         };
     }
 
-    createEmptyTwoDimensionalArray() {
-        const board = [];
+    createInitialSnake() {
+        const snake = [];
 
-        for (let i = 0; i < this.mapSize; ++i) {
-            board.push([]);
+        snake.push({ x: 4, y: 4 });
+        snake.push({ x: 4, y: 5 });
+        snake.push({ x: 4, y: 6 });
 
-            for (let j = 0; j < this.mapSize; ++j) {
-                board[i].push('');
-            }
-        }
-
-        return board;
+        return snake;
     }
 
-    addSnakeOnInitialPosition() {
-        this.snakePositions.push({ x: 4, y: 4 });
-        this.snakePositions.push({ x: 4, y: 5 });
-        this.snakePositions.push({ x: 4, y: 6 });
+    createNewApple(snake) {
+        let appleX, appleY;
+
+        do {
+            appleX = getRandomInt(0, DefaultMapSize - 1);
+            appleY = getRandomInt(0, DefaultMapSize - 1);
+        } while (this.snakeContains(snake, { x: appleX, y: appleY }));
+
+        return {
+            x: appleX,
+            y: appleY
+        };
     }
 
-    createBoardSyncedWithSnakePositions() {
-        const board = this.createEmptyTwoDimensionalArray();
+    snakeContains(snake, position) {
+        return snake.filter(pos => pos.x === position.x && pos.y === position.y).length > 0;
+    }
 
-        for (let i = 0; i < this.snakePositions.length; ++i) {
-            const x = this.snakePositions[i].x;
-            const y = this.snakePositions[i].y;
+    onKeyPressed(e) {
+        const key = e.key;
+        let newDirection;
 
-            board[x][y] = 'X';
+        if (key === 'ArrowUp' && this.direction !== 'down') {
+            newDirection = 'up';
+        } else if (key === 'ArrowDown' && this.direction !== 'up') {
+            newDirection = 'down';
+        } else if (key === 'ArrowLeft' && this.direction !== 'right') {
+            newDirection = 'left';
+        } else if (key === 'ArrowRight' && this.direction !== 'left') {
+            newDirection= 'right';
         }
 
-        return board;
+        this.setState({
+            direction: newDirection
+        });
     }
 
     onStartPauseClickedCallback() {
-        console.log('callback');
         this.setState((prevState, props) => ({
             paused: !prevState.paused
         }), this.onStartPauseStateChanged );
     }
 
+    onGameResetClickedCallback() {
+       this.setState(this.getInitialState(false));
+    }
+
     onStartPauseStateChanged() {
         if (!this.state.paused) {
-            this.timerId = setInterval(this.onTick, 300);
+            this.timerId = setInterval(this.onTick, 400);
         } else {
             clearInterval(this.timerId);
         }
@@ -107,22 +114,49 @@ export default class Tetris extends Component {
     }
 
     tryToMoveSnake() {
-        if (this.checkCollision()) {
-            // handle collision
+        const newHead = this.getNewHead();
+
+        if (this.checkCollision(this.state.snake, newHead)) {
+            this.setState({
+                gameOver: true,
+                paused: true
+            });
         } else {
-            this.moveSnake();
+            this.setState(prevState => {
+                const movedSnake = this.getMovedSnake(prevState.snake, newHead);
+
+                if (this.tryToEatApple(movedSnake)) {
+                    const enlargedSnake = this.enlargeSnake(movedSnake);
+
+                    return {
+                        apple: this.createNewApple(movedSnake),
+                        score: prevState.score + PointsIncrement,
+                        snake: enlargedSnake
+                    };
+                }
+
+                return {
+                    snake: movedSnake
+                };
+            }); 
         }
     }
 
-    moveSnake() {
-        console.log('moving snake');
-        this.snakePositions.shift();
-        const firstTile = this.snakePositions[this.snakePositions.length - 1];
+    checkCollision(snake, newHead) {
+        return this.snakeContains(snake, newHead);
+    }
+
+    tryToEatApple(snake) {
+        return this.snakeContains(snake, this.state.apple);
+    }
+
+    getNewHead() {
+        const firstTile = this.state.snake[this.state.snake.length - 1];
         let firstX = firstTile.x, firstY = firstTile.y;
 
-        switch (this.direction) {
+        switch (this.state.direction) {
             case 'right':
-                if (firstY === this.mapSize - 1) {
+                if (firstY === DefaultMapSize - 1) {
                     firstY = 0;
                 } else {
                     ++firstY;
@@ -132,7 +166,7 @@ export default class Tetris extends Component {
 
             case 'left':
                 if (firstY === 0) {
-                    firstY = this.mapSize - 1;
+                    firstY = DefaultMapSize - 1;
                 } else {
                     --firstY;
                 }
@@ -141,7 +175,7 @@ export default class Tetris extends Component {
 
             case 'up':
                 if (firstX === 0) {
-                    firstX = this.mapSize - 1;
+                    firstX = DefaultMapSize - 1;
                 } else {
                     --firstX;
                 }
@@ -149,30 +183,67 @@ export default class Tetris extends Component {
                 break;
 
             case 'down':
-                if (firstX === this.mapSize - 1) {
+                if (firstX === DefaultMapSize - 1) {
                     firstX = 0;
                 } else {
                     ++firstX;
                 }
 
                 break;
+
+            default:
+                alert('Direction should always be set.');
         }
 
-        this.snakePositions.push({ x: firstX, y: firstY });
-
-        this.setState({
-            board: this.createBoardSyncedWithSnakePositions()
-        });
+        return {
+            x: firstX,
+            y: firstY
+        };
     }
 
-    checkCollision() {
-        return false;
+    getTranslationBasedOnDirection() {
+        switch (this.state.direction) {
+            case 'right':
+                return { x: 0, y: -1 };
+
+            case 'left':
+                return { x: 0, y: 1 };
+
+            case 'up':
+                return { x: 1, y: 0 };
+
+            case 'down':
+                return { x: -1, y: 0 };
+
+            default:
+                alert('Direction should always be set.');
+        }
+    }
+
+    getMovedSnake(originalSnake, newHead) {
+        return [...originalSnake.slice(1, originalSnake.length), newHead];
+    }
+
+    enlargeSnake(snake) {
+        const translation = this.getTranslationBasedOnDirection();
+        const lastTile = snake[0];
+        const enlargingTile = {
+            x: lastTile.x + translation.x,
+            y: lastTile.y + translation.y
+        };
+
+        return [enlargingTile, ...snake];
     }
 
     render () {
         return [
-                <Board board={this.state.board} />,
-                <ControlPanel paused={this.state.paused} onStartPauseClicked={this.onStartPauseClickedCallback} />
+                <Board snake={this.state.snake} apple={this.state.apple} />,
+                <ControlPanel
+                    paused={this.state.paused}
+                    gameOver={this.state.gameOver}
+                    score={this.state.score}
+                    onStartPauseClicked={this.onStartPauseClickedCallback}
+                    onResetGameClicked={this.onGameResetClickedCallback} />
         ];
     }
 }
