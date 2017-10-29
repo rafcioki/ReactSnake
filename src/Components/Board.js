@@ -18,12 +18,14 @@ const StandardTile = styled.td`
     background-color: black;
     height: 15px; 
     width: 15px;
+    border: 1px solid black;
 `;
 
 const AppleTile = styled.td`
     background-color: red;
     height: 15px; 
     width: 15px;
+    border: 1px solid black;
 `;
 
 const createEmptyTwoDimensionalArray = () => {

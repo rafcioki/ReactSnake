@@ -34,6 +34,7 @@ export default class Tetris extends Component {
 
         return {
             direction: 'right',
+            nextDirection: null,
             snake: this.createInitialSnake(),
             gameOver: false,
             paused: isPausedWhenStarted,
@@ -72,20 +73,30 @@ export default class Tetris extends Component {
 
     onKeyPressed(e) {
         const key = e.key;
-        let newDirection;
 
-        if (key === 'ArrowUp' && this.direction !== 'down') {
-            newDirection = 'up';
-        } else if (key === 'ArrowDown' && this.direction !== 'up') {
-            newDirection = 'down';
-        } else if (key === 'ArrowLeft' && this.direction !== 'right') {
-            newDirection = 'left';
-        } else if (key === 'ArrowRight' && this.direction !== 'left') {
-            newDirection= 'right';
-        }
+        this.setState(prevState => {
+            if (prevState.nextDirection) {
+                return;
+            }
 
-        this.setState({
-            direction: newDirection
+            const currentDirection = prevState.direction;
+            let newDirection = currentDirection;
+    
+            if (key === 'ArrowUp') {
+                newDirection = 'up';
+            } else if (key === 'ArrowDown') {
+                newDirection = 'down';
+            } else if (key === 'ArrowLeft') {
+                newDirection = 'left';
+            } else if (key === 'ArrowRight') {
+                newDirection= 'right';
+            }
+    
+            if (newDirection !== currentDirection) {
+                return {
+                    nextDirection: newDirection
+                }
+            }
         });
     }
 
@@ -101,7 +112,7 @@ export default class Tetris extends Component {
 
     onStartPauseStateChanged() {
         if (!this.state.paused) {
-            this.timerId = setInterval(this.onTick, 400);
+            this.timerId = setInterval(this.onTick, 150);
         } else {
             clearInterval(this.timerId);
         }
@@ -109,24 +120,50 @@ export default class Tetris extends Component {
 
     onTick() {
         if (!this.state.paused) {
+            this.changeDirection();
             this.tryToMoveSnake();
         }
     }
 
-    tryToMoveSnake() {
-        const newHead = this.getNewHead();
+    changeDirection() {
+        this.setState(prevState => {
+            if (!prevState.nextDirection) {
+                return;
+            }
 
-        if (this.checkCollision(this.state.snake, newHead)) {
-            this.setState({
-                gameOver: true,
-                paused: true
-            });
-        } else {
-            this.setState(prevState => {
+            let newDirection = prevState.nextDirection;
+            const currentDirection = prevState.direction;
+
+            if (newDirection === 'up' && currentDirection === 'down'
+                || newDirection === 'down' && currentDirection === 'up'
+                || newDirection === 'right' && currentDirection === 'left'
+                || newDirection === 'left' && currentDirection === 'right') {
+                    return {
+                        nextDirection: null
+                    };
+                }
+
+            return {
+                direction: newDirection,
+                nextDirection: null
+            }
+        });
+    }
+
+    tryToMoveSnake() {
+        this.setState(prevState => {
+            const newHead = this.getNewHead(prevState.direction, prevState.snake);
+
+            if (this.checkCollision(prevState.snake, newHead)) {
+                return {
+                    gameOver: true,
+                    paused: true
+                };
+            } else {
                 const movedSnake = this.getMovedSnake(prevState.snake, newHead);
 
-                if (this.tryToEatApple(movedSnake)) {
-                    const enlargedSnake = this.enlargeSnake(movedSnake);
+                if (this.tryToEatApple(movedSnake, prevState.apple)) {
+                    const enlargedSnake = this.enlargeSnake(prevState.apple, movedSnake);
 
                     return {
                         apple: this.createNewApple(movedSnake),
@@ -138,23 +175,23 @@ export default class Tetris extends Component {
                 return {
                     snake: movedSnake
                 };
-            }); 
-        }
+            }
+        });
     }
 
     checkCollision(snake, newHead) {
         return this.snakeContains(snake, newHead);
     }
 
-    tryToEatApple(snake) {
-        return this.snakeContains(snake, this.state.apple);
+    tryToEatApple(snake, apple) {
+        return this.snakeContains(snake, apple);
     }
 
-    getNewHead() {
-        const firstTile = this.state.snake[this.state.snake.length - 1];
+    getNewHead(direction, snake) {
+        const firstTile = snake[snake.length - 1];
         let firstX = firstTile.x, firstY = firstTile.y;
 
-        switch (this.state.direction) {
+        switch (direction) {
             case 'right':
                 if (firstY === DefaultMapSize - 1) {
                     firstY = 0;
@@ -201,38 +238,12 @@ export default class Tetris extends Component {
         };
     }
 
-    getTranslationBasedOnDirection() {
-        switch (this.state.direction) {
-            case 'right':
-                return { x: 0, y: -1 };
-
-            case 'left':
-                return { x: 0, y: 1 };
-
-            case 'up':
-                return { x: 1, y: 0 };
-
-            case 'down':
-                return { x: -1, y: 0 };
-
-            default:
-                alert('Direction should always be set.');
-        }
-    }
-
     getMovedSnake(originalSnake, newHead) {
         return [...originalSnake.slice(1, originalSnake.length), newHead];
     }
 
-    enlargeSnake(snake) {
-        const translation = this.getTranslationBasedOnDirection();
-        const lastTile = snake[0];
-        const enlargingTile = {
-            x: lastTile.x + translation.x,
-            y: lastTile.y + translation.y
-        };
-
-        return [enlargingTile, ...snake];
+    enlargeSnake(apple, snake) {
+        return [apple, ...snake];
     }
 
     render () {

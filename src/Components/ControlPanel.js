@@ -37,7 +37,7 @@ const ResetButton = styled.button`
 const RenderGamePlayPanel = (props) => {
     return [
             <GameplayButton onClick={props.onStartPauseClicked}>{props.paused ? 'Play' : 'Pause' }</GameplayButton>,
-            <ResetButton>Reset</ResetButton>
+            <ResetButton onClick={props.onResetGameClicked}>Reset</ResetButton>
     ];
 };
 
